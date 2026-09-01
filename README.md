@@ -30,7 +30,7 @@ Both papers are preprints at the time of this release. The arXiv identifiers wil
 - [Manopt](https://www.manopt.org) 8.0 or later on the path. The scripts call `trustregions`, `conjugategradient`, `stiefelfactory`, `hessianspectrum`, `checkgradient` and `checkhessian`.
 - [CVX](https://cvxr.com) on the path, needed only by `example_symm.m` and `example_skew.m`, which solve a linear program to design the constraint spectra.
 
-Neither dependency is bundled here. Install both and add them to the MATLAB path before running anything.
+The Control System Toolbox must be installed with MATLAB. Manopt and CVX are not bundled here; install them and add them to the MATLAB path before running anything.
 
 ## Quick start
 
