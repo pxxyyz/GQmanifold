@@ -26,6 +26,7 @@ Both papers are preprints at the time of this release. The arXiv identifiers wil
 ## Requirements
 
 - MATLAB R2020a or later. The example scripts use `tiledlayout` and `exportgraphics`.
+- MATLAB Control System Toolbox. The manifold factories use `lyap` to solve continuous-time Sylvester and Lyapunov equations.
 - [Manopt](https://www.manopt.org) 8.0 or later on the path. The scripts call `trustregions`, `conjugategradient`, `stiefelfactory`, `hessianspectrum`, `checkgradient` and `checkhessian`.
 - [CVX](https://cvxr.com) on the path, needed only by `example_symm.m` and `example_skew.m`, which solve a linear program to design the constraint spectra.
 
