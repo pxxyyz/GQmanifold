@@ -2,7 +2,7 @@
 
 A [Manopt](https://www.manopt.org) manifold factory for Riemannian optimization over the **generalized quadratic matrix manifold**
 
-$$\mathrm{Gq}(P, Q) = \{\, X \in \mathbb{R}^{n \times p} : X^\top Q X = P \,\},$$
+$$\mathrm{Gq}(P, Q) = \lbrace X \in \mathbb{R}^{n \times p} : X^\top Q X = P \rbrace,$$
 
 where $Q \in \mathbb{R}^{n \times n}$ and $P \in \mathbb{R}^{p \times p}$ are invertible and carry the same symmetry, either both symmetric or both skew-symmetric.
 
@@ -10,7 +10,7 @@ One factory covers the classical Stiefel-type manifolds:
 
 | $(Q, P)$ | manifold |
 | --- | --- |
-| symmetric positive definite | generalized Stiefel manifold, and the standard Stiefel manifold $\mathrm{St}(n,p)$ when $Q = I_n$ and $P = I_p$ |
+| symmetric positive definite | generalized Stiefel manifold, and the standard Stiefel manifold $\mathrm{St}(p,n)$ when $Q = I_n$ and $P = I_p$ |
 | skew-symmetric | symplectic Stiefel manifold, with $Q = J_n$ and $P = J_p$ |
 | $Q$ symmetric indefinite, $P = \mathrm{diag}(\pm 1)$ with $P^2 = I$ | indefinite Stiefel manifold $\mathrm{iSt}(A, J) = \mathrm{Gq}(J, A)$ |
 
@@ -69,7 +69,7 @@ To reproduce a published experiment, start MATLAB in this directory and run one 
 | `symplecticfactory.m` | Standalone factory for the symplectic Stiefel manifold $\mathrm{Sp}(2p,2n)$, with a selectable Euclidean or canonical-like metric and a closed-form Riemannian Hessian. Serves as the baseline in `example_skew.m`. |
 | `YoulaDecomposition.m` | Real Youla decomposition of a skew-symmetric matrix. Called by the skew-symmetric branch of `M.rand` in `generalfactory.m` and by `example_skew.m`. |
 | `check_retr.m` | Taylor-remainder check of the closed-form Riemannian gradient and Hessian, over the three retractions and the three configurations of $(P,Q)$, together with the second-order corrections. Reproduces the figure of Section 5.1 of the geometry paper. Seed `rng(1)`, dimensions $n = 100$, $p = 10$. Writes `check_retr_n_100_p_10.pdf` and two CSV tables. |
-| `example_trace.m` | Trace minimization $\min \{ \mathrm{tr}(X^\top A X) : X^\top Q X = P \}$ in the symmetric, skew-symmetric and indefinite configurations, with both the conjugate gradient and the trust-region solver and every admissible retraction. Reproduces the figure and the tables of Section 5.2 of the geometry paper. Seed `rng(1)`, dimensions $n = 100$, $p = 10$. Writes `trace_RCG_n_100_p_10.pdf`, `trace_RTR_n_100_p_10.pdf` and one CSV table per configuration. |
+| `example_trace.m` | Trace minimization $\min \lbrace \mathrm{tr}(X^\top A X) : X^\top Q X = P \rbrace$ in the symmetric, skew-symmetric and indefinite configurations, with both the conjugate gradient and the trust-region solver and every admissible retraction. Reproduces the figure and the tables of Section 5.2 of the geometry paper. Seed `rng(1)`, dimensions $n = 100$, $p = 10$. Writes `trace_RCG_n_100_p_10.pdf`, `trace_RTR_n_100_p_10.pdf` and one CSV table per configuration. |
 | `example_symm.m` | Preconditioning experiment, symmetric case. Compares the baseline $\mathrm{St}(p,n)$ with the reshaped constraint $\mathrm{Gq}(P,Q)$ under balanced and optimally designed constraint spectra, and with the Lagrangian-induced and left-right preconditioned metrics. Reproduces the symmetric half of Section 6.1 of the preconditioning paper. Seed `rng(0)`, dimensions $n = 100$, $p = 20$. Writes `symm_*_n_100_p_20.pdf` and the matching CSV tables. Requires CVX. |
 | `example_skew.m` | Preconditioning experiment, skew-symmetric case. Compares the baseline $\mathrm{Sp}(p,n)$ with the reshaped constraint $\mathrm{Gq}(P,Q)$ under balanced and optimally designed constraint spectra. Reproduces the skew-symmetric half of Section 6.1 of the preconditioning paper. Seed `rng(0)`, dimensions $n = 100$, $p = 20$. Writes `skew_*_n_100_p_20.pdf` and the matching CSV tables. Requires CVX. |
 | `results/` | Output directory. Every figure, table and log produced by the scripts lands here. |
