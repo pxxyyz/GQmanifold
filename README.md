@@ -4,15 +4,16 @@ A [Manopt](https://www.manopt.org) manifold factory for Riemannian optimization 
 
 $$\mathrm{Gq}(P, Q) = \lbrace X \in \mathbb{R}^{n \times p} : X^\top Q X = P \rbrace,$$
 
-where $Q \in \mathbb{R}^{n \times n}$ and $P \in \mathbb{R}^{p \times p}$ are invertible and carry the same symmetry, either both symmetric or both skew-symmetric.
+where $Q \in \mathbb{R}^{n \times n}$ and $P \in \mathbb{R}^{p \times p}$ are invertible and carry the same symmetry, either both symmetric or both skew-symmetric. The pair must be admissible: in the skew-symmetric case $n$ and $p$ are even, and in the symmetric indefinite case the inertia of $P$ is dominated by that of $Q$.
 
-One factory covers the classical Stiefel-type manifolds:
+One factory covers the classical Stiefel-type manifolds and the quadratic matrix Lie groups:
 
 | $(P, Q)$ | manifold |
 | --- | --- |
 | $P$ and $Q$ symmetric positive definite | generalized Stiefel manifold, and the standard Stiefel manifold $\mathrm{St}(p,n)$ when $P = I_p$ and $Q = I_n$ |
 | $P$ and $Q$ skew-symmetric | symplectic Stiefel manifold, with $P = J_p$ and $Q = J_n$ |
 | $P = J$ with $J^2 = I_p$, $Q = A$ symmetric indefinite | indefinite Stiefel manifold $\mathrm{iSt}(J, A) = \mathrm{Gq}(J, A)$ |
+| $p = n$, $P = Q$ | quadratic matrix Lie group $\mathrm{QLie}(Q) = \mathrm{Gq}(Q, Q)$ |
 
 The geometry is built from the $(P,Q)$-adjoint $A^{(P,Q)} = P^{-1} A^\top Q$ under a canonical-like metric, with closed-form gradient and Hessian conversions, three retractions (Cayley, quasi-geodesic, polar) with explicit domains, their second-order corrections, and matching vector transports.
 
@@ -76,7 +77,7 @@ To reproduce a published experiment, start MATLAB in this directory and run one 
 | `native_design_diagnostics.m` | Recomputes the LP and QP primal violations and KKT residuals after the setup timers stop. Called by the two preconditioning drivers. |
 | `record_solver_termination.m` | Applies Manopt's stopping rules to the returned endpoint and records the stopping reason. Called by the two preconditioning drivers. |
 | `flush_transp_guard_log.m` | Writes the deferred transport-guard counter CSV after the algorithm timers stop. |
-| `check_retr.m` | Taylor-remainder check of the closed-form Riemannian gradient and Hessian, over the three retractions and the three configurations of $(P,Q)$, together with the second-order corrections. Reproduces the figure of Section 6.1 of the geometry paper (arXiv:2610.28159). Seed `rng(1)`, dimensions $n = 100$, $p = 10$. Writes `check_retr_n_100_p_10.pdf` and two CSV tables. |
+| `check_retr.m` | Taylor-remainder check of the closed-form Riemannian gradient and Hessian, over the three retractions and the three configurations of $(P,Q)$, together with the second-order corrections. Reproduces the figure of Section 6.1 of the geometry paper (arXiv:2610.28159). Seed `rng(1)`, dimensions $n = 100$, $p = 10$. Writes the PDF, two CSV tables, a console log, a MAT file and the transport-guard counter CSV. |
 | `example_trace.m` | Trace minimization $\min \lbrace \mathrm{tr}(X^\top A X) : X^\top Q X = P \rbrace$ in the symmetric, skew-symmetric and indefinite configurations, with both the conjugate gradient and the trust-region solver and every admissible retraction. Reproduces the figure and the tables of Section 6.2 of the geometry paper. Seed `rng(1)`, dimensions $n = 100$, $p = 10$. Writes `trace_RCG_n_100_p_10.pdf`, `trace_RTR_n_100_p_10.pdf`, one CSV table and one fixture MAT file per configuration. |
 | `example_symm.m` | Preconditioning experiment, symmetric case. Compares the baseline $\mathrm{St}(p,n)$ with the reshaped constraint $\mathrm{Gq}(P,Q)$ under balanced and optimally designed constraint spectra, and with the Lagrangian-induced and left-right preconditioned metrics. Reproduces the symmetric half of the numerical experiments of the preconditioning paper. Seed `rng(0)`, dimensions $n = 100$, $p = 20$. Solves the design LP with `linprog` and the secondary QP with `quadprog`; CVX is not used. Writes `symm_*_n_100_p_20.pdf`, the matching CSV table, a timing CSV, a validation MAT file, and `legend_symm.pdf`. |
 | `example_skew.m` | Preconditioning experiment, skew-symmetric case. Compares the baseline $\mathrm{Sp}(p,n)$ with the reshaped constraint $\mathrm{Gq}(P,Q)$ under balanced and optimally designed constraint spectra. Reproduces the skew-symmetric half of the numerical experiments of the preconditioning paper. Seed `rng(0)`, dimensions $n = 100$, $p = 20$. Solves the design LP with `linprog` and the secondary QP with `quadprog`; CVX is not used. Writes `skew_*_n_100_p_20.pdf`, the matching CSV table, a timing CSV, a validation MAT file, and `legend_skew.pdf`. |
