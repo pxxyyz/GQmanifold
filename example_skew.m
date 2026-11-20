@@ -14,8 +14,8 @@
 % skew-symmetric eigendecompositions use YoulaDecomposition.m.
 %
 % Reproduces the skew-symmetric half of the numerical experiments of the paper
-% "Preconditioning for Ill-Conditioned Quadratic Optimization via Reshaping
-% Constraints".
+% "Preconditioning for Quadratic Matrix Optimization via Constraint
+% Reshaping" (arXiv:2611.26078).
 %
 % Seed rng(0), set once at the top. Dimensions n = 100, p = 20. The Hessian
 % spectra dominate the cost of the run.

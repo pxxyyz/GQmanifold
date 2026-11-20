@@ -14,21 +14,21 @@ One factory covers the classical Stiefel-type manifolds:
 | $P$ and $Q$ skew-symmetric | symplectic Stiefel manifold, with $P = J_p$ and $Q = J_n$ |
 | $P = J$ with $J^2 = I_p$, $Q = A$ symmetric indefinite | indefinite Stiefel manifold $\mathrm{iSt}(J, A) = \mathrm{Gq}(J, A)$ |
 
-The geometry is built from the $(P,Q)$-adjoint $A^{(P,Q)} = P^{-1} A^\top Q$ under a canonical-like metric, with closed-form gradient and Hessian conversions, three feasible retractions (Cayley, quasi-geodesic, polar), their second-order corrections, and matching vector transports.
+The geometry is built from the $(P,Q)$-adjoint $A^{(P,Q)} = P^{-1} A^\top Q$ under a canonical-like metric, with closed-form gradient and Hessian conversions, three retractions (Cayley, quasi-geodesic, polar) with explicit domains, their second-order corrections, and matching vector transports.
 
-This repository holds the code that reproduces the numerical sections of two companion papers.
+This repository holds the code that reproduces the numerical experiments of two companion papers.
 
 - Zhen Peng and Bin Gao, *Generalized Quadratic Matrix Manifolds: Riemannian Geometry and Computations*, arXiv:2610.28159, 2026. Referred to below as the **geometry paper**.
-- Zhen Peng and Bin Gao, *Preconditioning for Ill-Conditioned Quadratic Optimization via Reshaping Constraints*, preprint, 2026. Referred to below as the **preconditioning paper**.
+- Zhen Peng and Bin Gao, *Preconditioning for Quadratic Matrix Optimization via Constraint Reshaping*, arXiv:2611.26078, 2026. Referred to below as the **preconditioning paper**.
 
-The geometry paper is available at [arXiv:2610.28159](https://arxiv.org/abs/2610.28159). The preconditioning paper is a preprint; its arXiv identifier will be added here when it is assigned.
+Both papers are available on arXiv: [2610.28159](https://arxiv.org/abs/2610.28159) (geometry) and [2611.26078](https://arxiv.org/abs/2611.26078) (preconditioning).
 
 ## Requirements
 
 - MATLAB R2025a for the preconditioning experiments (`example_symm.m`, `example_skew.m`). The design LP uses `linprog` with the `dual-simplex-highs` algorithm; the scripts use `exportgraphics` and, for the geometry figures, `tiledlayout`. The geometry checks `check_retr.m` and `example_trace.m` also run under R2024b.
 - MATLAB Optimization Toolbox. `example_symm.m` and `example_skew.m` solve the constraint-spectrum design with `linprog` and the secondary minimum-norm problem with `quadprog`.
 - MATLAB Control System Toolbox. Both manifold factories use `lyap` to solve continuous-time Sylvester and Lyapunov equations.
-- [Manopt](https://www.manopt.org) 8.0 on the path. The scripts call `trustregions`, `conjugategradient`, `stiefelfactory`, `hessianspectrum`, `checkgradient` and `checkhessian`; `check_retr.m` also uses Manopt's internal `checkdiff` and `checkhessian` helpers.
+- [Manopt](https://www.manopt.org) 8.0 on the path. The scripts call `trustregions`, `conjugategradient`, `stiefelfactory`, `hessianspectrum`, `checkgradient` and `checkhessian`; `check_retr.m` also relies on Manopt internals (`StoreDB`, `getCost`, `identify_linear_piece`), so it is tested against 8.0.
 
 The toolboxes and Manopt are not bundled here; install them and add Manopt to the MATLAB path before running anything. CVX is not required.
 
@@ -38,12 +38,12 @@ Build the factory and minimize a quadratic over the constraint set.
 
 ```matlab
 % Minimize trace(X'*A*X) over { X : X'*Q*X = P }.
+% Q : n x n invertible, symmetric or skew-symmetric
+% P : p x p invertible, with the SAME (skew-)symmetry as Q
 n = 100; p = 10;
 Q = gallery('lehmer', n);   % n x n, symmetric positive definite
 P = eye(p);                 % p x p, symmetric positive definite
 A = gallery('lehmer', n);   % symmetric cost matrix
-% Q : n x n invertible, symmetric or skew-symmetric
-% P : p x p invertible, with the SAME (skew-)symmetry as Q
 M = generalfactory(Q, P);          % canonical-like metric, beta = 1
 % M = generalfactory(Q, P, beta);  % custom metric scaling beta > 0
 
@@ -103,11 +103,11 @@ If you use this code, please cite the geometry paper.
 If you use the preconditioning experiments in `example_symm.m` or `example_skew.m`, please also cite the preconditioning paper.
 
 ```bibtex
-@unpublished{peng2026preconditioning,
-  title   = {Preconditioning for Ill-Conditioned Quadratic Optimization via Reshaping Constraints},
+@article{peng2026preconditioning,
+  title   = {Preconditioning for Quadratic Matrix Optimization via Constraint Reshaping},
   author  = {Peng, Zhen and Gao, Bin},
-  year    = {2026},
-  note    = {Preprint}
+  journal = {arXiv preprint arXiv:2611.26078},
+  year    = {2026}
 }
 ```
 
