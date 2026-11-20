@@ -26,12 +26,14 @@ Both papers are available on arXiv: [2610.28159](https://arxiv.org/abs/2610.2815
 
 ## Requirements
 
-- MATLAB R2025a for the preconditioning experiments (`example_symm.m`, `example_skew.m`). The design LP uses `linprog` with the `dual-simplex-highs` algorithm; the scripts use `exportgraphics` and, for the geometry figures, `tiledlayout`. The geometry checks `check_retr.m` and `example_trace.m` also run under R2024b.
+- MATLAB R2025a for the preconditioning experiments (`example_symm.m`, `example_skew.m`). The design LP uses `linprog` with the `dual-simplex-highs` algorithm; the scripts use `exportgraphics` and, for the geometry figures, `tiledlayout`. The geometry results were produced with MATLAB R2024b; `check_retr.m` and `example_trace.m` also run under R2025a.
 - MATLAB Optimization Toolbox. `example_symm.m` and `example_skew.m` solve the constraint-spectrum design with `linprog` and the secondary minimum-norm problem with `quadprog`.
 - MATLAB Control System Toolbox. Both manifold factories use `lyap` to solve continuous-time Sylvester and Lyapunov equations.
 - [Manopt](https://www.manopt.org) 8.0 on the path. The scripts call `trustregions`, `conjugategradient`, `stiefelfactory`, `hessianspectrum`, `checkgradient` and `checkhessian`; `check_retr.m` also relies on Manopt internals (`StoreDB`, `getCost`, `identify_linear_piece`), so it is tested against 8.0.
 
 The toolboxes and Manopt are not bundled here; install them and add Manopt to the MATLAB path before running anything. CVX is not required.
+
+The preconditioning table reproduces exactly under R2025a (timings are machine-dependent). The geometry trace table and figure were produced under R2024b: under R2025a the random starting point changes enough that a few iteration counts and stopping reasons differ, while the final objective values agree.
 
 ## Quick start
 
@@ -83,7 +85,7 @@ To reproduce a published experiment, start MATLAB in this directory and run one 
 | `example_skew.m` | Preconditioning experiment, skew-symmetric case. Compares the baseline $\mathrm{Sp}(p,n)$ with the reshaped constraint $\mathrm{Gq}(P,Q)$ under balanced and optimally designed constraint spectra. Reproduces the skew-symmetric half of the numerical experiments of the preconditioning paper. Seed `rng(0)`, dimensions $n = 100$, $p = 20$. Solves the design LP with `linprog` and the secondary QP with `quadprog`; CVX is not used. Writes `skew_*_n_100_p_20.pdf`, the matching CSV table, a timing CSV, a validation MAT file, and `legend_skew.pdf`. |
 | `results/` | Output directory. Every figure, table, timing record and log produced by the scripts lands here. It is created on demand and is not tracked. |
 
-Each seed is set once at the top of its script, so a run reproduces the published numbers on a single random stream. In `example_symm.m` and `example_skew.m` the four objectives are named `eigenvalue`, `brockett`, `tridiagonal` and `quadratic`, and those names appear in the output file names. The native design stages are asserted not to advance the random stream.
+Each seed is set once at the top of its script, so a run under the release used for that paper reproduces the published numbers on a single random stream. In `example_symm.m` and `example_skew.m` the four objectives are named `eigenvalue`, `brockett`, `tridiagonal` and `quadratic`, and those names appear in the output file names. The native design stages are asserted not to advance the random stream.
 
 The `*_timing.csv` files record one run's wall-clock breakdown. Times depend on the machine, the MATLAB release and the Optimization Toolbox solver, while the optimization trajectories and tables are reproducible up to floating-point and solver-version differences.
 
