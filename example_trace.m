@@ -255,6 +255,9 @@ for ic = 1:lenc
         sprintf('trace_%s_n_%d_p_%d.csv', case_list{ic}, n, p)));
 end
 
+flush_transp_guard_log(fullfile(output_dir, ...
+    'transp_guard_rejections_trace.csv'));
+
 %% Fixed color/marker per retraction (consistent across all panels)
 function [col, mk] = getstyle(name)
 switch name

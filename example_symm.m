@@ -8,22 +8,33 @@
 % run records the Riemannian gradient norm along the iterate sequence and the
 % condition number of the Riemannian Hessian at the converged point.
 %
-% Reproduces the symmetric half of Section 6.1 of the paper "Preconditioning for
-% Ill-Conditioned Quadratic Optimization via Reshaping Constraints".
+% The constraint spectra are designed by solving an affine linear program with
+% MATLAB's linprog and a secondary minimum-norm quadratic program with quadprog.
+% CVX is not required.
+%
+% Reproduces the symmetric half of the numerical experiments of the paper
+% "Preconditioning for Ill-Conditioned Quadratic Optimization via Reshaping
+% Constraints".
 %
 % Seed rng(0), set once at the top. Dimensions n = 100, p = 20. The Hessian
 % spectra dominate the cost of the run.
 %
-% Requires Manopt and CVX. CVX solves the linear program that designs the
-% constraint spectra.
+% Requires Manopt 8.0, the Optimization Toolbox (linprog, quadprog), and the
+% Control System Toolbox (lyap, through generalfactory).
+%
+% The TIMING-BEGIN and TIMING-END comments delimit the blocks used by the
+% paper's timing protocol; they are comments only.
 %
 % Run from this directory:
 %   >> example_symm
 %
 % Outputs, all written to results/ , with <problem> ranging over eigenvalue,
 % brockett, tridiagonal and quadratic:
-%   symm_<problem>_n_100_p_20.pdf   convergence figure, one per objective
-%   symm_<problem>_n_100_p_20.csv   the matching table
+%   symm_<problem>_n_100_p_20.pdf             convergence figure
+%   symm_<problem>_n_100_p_20.csv             matching table
+%   symm_<problem>_n_100_p_20_timing.csv      timing breakdown
+%   symm_<problem>_n_100_p_20_validation.mat  full run record
+%   legend_symm.pdf                           shared legend strip
 
 clear; close all; clc; rng(0);
 
@@ -34,7 +45,13 @@ n = 100; p = 20;
 In = eye(n); Ip = eye(p);
 
 C = gallery('lehmer', n);
+% TIMING-BEGIN
+timing_init_clock = tic;
+% TIMING-END
 Y0 = orth(randn(n,p));
+% TIMING-BEGIN
+timing_initial = toc(timing_init_clock);
+% TIMING-END
 % Y0 = qr_unique(randn(n, p));
 
 %% Create the problem
@@ -56,23 +73,32 @@ lenp = numel(prob);
 line_list = {'-', '--', '-.', ':', '-.'};
 color_list = {'k', 'r', 'b', 'g', 'm'};
 marker_list = {'o', 's', '^', 'd', 'x'};
+% Plotting constants of the IMANUM v2_15 figure layout, taken from
+% review/IMANUM/v2/v2_15-apply/replot_figs.m. At 7 in, placed at \linewidth
+% (145 mm) in the paper, a design size s prints at about 0.81 s, so ticks print
+% at 8.5 pt and axis labels and the legend at 8.9 pt. The legend is exported once
+% per family as a separate strip, results/legend_symm.pdf, shared by the four
+% instance figures. The PDFs committed in results/ predate this layout: v2_15
+% redrew the published figures from their vector data (GQ-IMANUM/figures/)
+% without rerunning this driver, so a rerun regenerates them in the new layout.
 FONT_NAME = 'Times New Roman';
-FONT_SIZE_LABEL = 9;
-FONT_SIZE_TICK = 8;
-FONT_SIZE_LEGEND = 9;
+FONT_SIZE_LABEL = 11;     % prints at 8.9 pt
+FONT_SIZE_TICK = 10.5;    % prints at 8.5 pt
+FONT_SIZE_LEGEND = 11;    % prints at 8.9 pt
+AXIS_COLOR = [0.15 0.15 0.15];
 LINE_WIDTH = 2;
 AXIS_LINE_WIDTH = 1.0;
 MARKER_SIZE = 4;
 MARKER_NUM = 5;
 FIG_WIDTH = 7;
-FIG_HEIGHT = 2;
+FIG_HEIGHT = 1.9;
 
-left = 0.06;    % minimum left margin (maximizes the subplots)
-right = 0.02;   % minimum right margin
-bottom = 0.2;  % minimum bottom margin
-top = 0.12;     % top margin, leaving room for the title
-hspace = 0.06;  % horizontal gap between subplots
-vspace = 0.01;  % vertical gap between subplots
+left = 0.075;   % v2_15 layout (replot_figs.m)
+right = 0.012;
+bottom = 0.25;  % room for the x labels only, the legend is a separate strip
+top = 0.035;
+hspace = 0.078;
+vspace = 0.01;  % 子图垂直间距
 ncols = 3; nrows = 1;
 subplotW = (1 - left - right - (ncols-1)*hspace) / ncols;
 subplotH = (1 - top - bottom - (nrows-1)*vspace) / nrows;
@@ -85,14 +111,33 @@ if ~exist(output_dir, 'dir')
     mkdir(output_dir);
 end
 
-% These depend only on C, not on ip. Hoisted out of the loop; they consume no
-% random numbers, so the rng(0) stream is untouched.
+% WP10: these depend only on C, not on ip. Hoisted out of the loop; they
+% consume no random numbers, so the rng(0) stream is untouched and every
+% published number is bit-identical.
+% TIMING-BEGIN
+timing_shared_clock = tic;
+% TIMING-END
 [Uc, Lc] = eig(C);
 lc = diag(Lc);                % eigenvalues of C (column vector)
 lcmin = min(lc);              % lambda_min(C), used by omega(Y)
+% TIMING-BEGIN
+timing_eigC = toc(timing_shared_clock);
+% TIMING-END
 c = sort(1 ./ lc, 'descend');     % eig(C^{-1}) descending, length n
+% TIMING-BEGIN
+timing_shared_clock = tic;
+% TIMING-END
 rootC = sqrtm(C);
+% TIMING-BEGIN
+timing_rootC = toc(timing_shared_clock);
+% TIMING-END
+% TIMING-BEGIN
+timing_shared_clock = tic;
+% TIMING-END
 tildeQ = inv(rootC);
+% TIMING-BEGIN
+timing_inverse_rootC = toc(timing_shared_clock);
+% TIMING-END
 
 for ip = 1:lenp
     D = prob{ip}.D;
@@ -101,6 +146,10 @@ for ip = 1:lenp
 
     d = sort(eig(D),  'descend');     % eig(D) descending, length p
     %% Create the solver
+% TIMING-BEGIN
+    timing_setup = zeros(1, 5);
+    timing_method_clock = tic;
+% TIMING-END
     sol{1}.M = stiefelfactory(n, p);
     sol{1}.cost = @(Y) trace(Y'*C*Y*D);
     sol{1}.egrad = @(Y) 2*C*Y*D;
@@ -110,6 +159,10 @@ for ip = 1:lenp
     sol{1}.feasi = @(Y) norm(Y'*Y - Ip, 'fro');
     sol{1}.name = "St(p,n)";
     sol{1}.condhat = @(x) euclid_spectrum(c, d, n, p);
+% TIMING-BEGIN
+    timing_setup(1) = toc(timing_method_clock);
+    timing_method_clock = tic;
+% TIMING-END
 
     % A = I, B = I     (tildeQ = inv(sqrtm(C)) hoisted above: depends only on C)
     tildeP = sqrtm(D);
@@ -125,8 +178,12 @@ for ip = 1:lenp
     sol{2}.feasi = @(Y) norm(P\(Y'*Q*Y - P), 'fro');
     sol{2}.name = "Gq(P,Q)";
     sol{2}.condhat = @(x) GQ_spectrum(c, d, d, c, n, p);
+% TIMING-BEGIN
+    timing_setup(2) = toc(timing_method_clock);
+    timing_method_clock = tic;
+% TIMING-END
 
-    % EQopt + EPopt cvx     (rootC = sqrtm(C) hoisted above: depends only on C)
+    % Optimized design with native sparse LP and quadratic secondary program     (rootC = sqrtm(C) hoisted above: depends only on C)
     rootD = sqrtm(D);
     frakC = rootC\In/rootC;
     frakD = rootD*Ip*rootD;
@@ -137,74 +194,17 @@ for ip = 1:lenp
     [UD, dED] = eig(frakD, 'vector');
     [~, ind] = sort(dED,'descend');
     ED = dED(ind); UD = UD(:,ind);
-    [Iidx1, Jidx1] = meshgrid(1:p, 1:p);
-    M = ((1./EC(Iidx1)-1./EC(Jidx1)).*(ED(Jidx1)-ED(Iidx1)))/2;
-    logM = log(M);
-
-    [Iidx2, Jidx2] = meshgrid(1:p, p+1:n);
-    N = (1./EC(Jidx2)-1./EC(Iidx2)).*ED(Iidx2);
-    logN = log(N);
-    [~, ~, idxED] = unique(ED, 'stable');
-
-    cvx_begin quiet
-        variables x(p) y(n-p) U L
-        eq_mask = idxED == idxED';
-        [i,j] = find(triu(eq_mask, 1));
-        x(i) == x(j);
-    
-        minimize(U - L)
-    
-        idxM = logM > -inf;
-        [iM,jM] = find(idxM);
-        varM = logM(idxM) - x(iM) - x(jM);
-        varM <= U;
-        varM >= L;
-    
-        idxN = logN > -inf;
-        [iN,jN] = find(idxN);
-        varN = logN(idxN) + y(iN) - x(jN);
-        varN <= U;
-        varN >= L;
-    cvx_end
-    opt_lp = cvx_optval;
-
-    % Lexicographic tie-break: stage two is posed as close to the optimal face
-    % as the solver can certify. The ladder starts at solver precision and
-    % escalates only if CVX does not return 'Solved'; the realized slack is
-    % printed so the reported spread's distance from opt_lp is auditable.
-    for slack_scale = [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4]
-        slack = slack_scale * max(1.0, abs(opt_lp));
-        cvx_begin quiet
-            variables x(p) y(n-p) U L
-            eq_mask = idxED == idxED';
-            [i,j] = find(triu(eq_mask, 1));
-            x(i) == x(j);
-
-            minimize(sum_square(x) + sum_square(y))
-
-            U - L <= opt_lp + slack;
-
-            idxM = logM > -inf;
-            [iM,jM] = find(idxM);
-            varM = logM(idxM) - x(iM) - x(jM);
-            varM <= U;
-            varM >= L;
-
-            idxN = logN > -inf;
-            [iN,jN] = find(idxN);
-            varN = logN(idxN) + y(iN) - x(jN);
-            varN <= U;
-            varN >= L;
-        cvx_end
-        if strcmp(cvx_status, 'Solved')
-            break;
-        end
-    end
-    if ~strcmp(cvx_status, 'Solved')
-        error('Stage-2 CVX solve failed at maximum relative slack 1e-4: %s', cvx_status);
-    end
-    disp(['Stage-2 slack: ', num2str(slack, 17)]);
-    disp(['cvx opt: ', num2str(exp(U-L))]);
+    % Same affine mode model and secondary objective with native solvers.
+    design_rng_before = rng;
+    [design, design_state] = native_design_fast('symm', EC, ED);
+    design_rng_after = rng;
+    assert(isequal(design_rng_before, design_rng_after), 'Native design changed advancing RNG stream');
+    design_x = design.x;
+    design_y = design.y;
+    x = design_x;
+    y = design_y;
+    opt_lp = design.lp_value;
+    slack = design.slack;
 
     UQ = orth(rand(n));
     EQ = [ones(p,1); exp(y)];
@@ -228,6 +228,10 @@ for ip = 1:lenp
     sol{3}.feasi = @(Y) norm(P\(Y'*Q*Y - P), 'fro');
     sol{3}.name = "Gq(P,Q)";
     sol{3}.condhat = @(x) GQ_spectrum(c, d, EP, EQ, n, p);
+% TIMING-BEGIN
+    timing_setup(3) = toc(timing_method_clock);
+    timing_method_clock = tic;
+% TIMING-END
 
     eta   = 0.8;                  % safety factor for omega(Y), in (0,1)
     opGLag = @(Y, Z) 2*(C*Z)*D - 2*omega_of_Y(Y, C, D, lcmin, eta)*Z*symm(Y'*C*Y*D);
@@ -252,13 +256,17 @@ for ip = 1:lenp
     % Defer it as a function of the converged point x (resolved in the loop).
     sol{4}.condhat = @(x) lag_spectrum(c, d, n, p, ...
                                        omega_of_Y(x, C, D, lcmin, eta));
-    % hessianspectrum evaluates the Hessian ~2001 times at ONE fixed base
+    % WP10: hessianspectrum evaluates the Hessian ~2001 times at ONE fixed base
     % point, and egrad2rgrad_Lag rebuilds the same p(p+1)/2-square tangency
     % system every time. Hand getcond a prepared solver whose cached operator
     % reuses that system. Bit-identical by construction (verified: the cached
     % and uncached rgrad differ by exactly 0 in Frobenius norm).
     sol{4}.prepare_hessian = @(s, x) prepare_lag_hessian(s, x, C, D, ...
                                        lcmin, eta, Uc, lc, p);
+% TIMING-BEGIN
+    timing_setup(4) = toc(timing_method_clock);
+    timing_method_clock = tic;
+% TIMING-END
 
     delta = 1e-3;                 % left-right regularisation parameter, > 0
     opGLR = @(Y, Z) (C*Z) * sqrtmL(symm(Y'*C*Y*D), delta, p);
@@ -277,41 +285,96 @@ for ip = 1:lenp
     sol{5}.feasi = @(Y) norm(Y'*Y - Ip, 'fro');
     sol{5}.name = "St(p,n)";
     sol{5}.condhat = @(x) lr_spectrum(c, d, n, p, delta);
+% TIMING-BEGIN
+    timing_setup(5) = toc(timing_method_clock);
+% TIMING-END
 
     muD = sort(eig(D), 'descend');
     lcA = sort(lc, 'ascend');
     fstar = sum(lcA(1:p) .* muD);
 
+% TIMING-BEGIN
+    timing_options_clock = tic;
+% TIMING-END
     opt.verbosity = 0;
     opt.maxiter = 1e4;
     opt.tolgradnorm = 1e-6;   % set explicitly (equals the Manopt default) for reproducibility
+% TIMING-BEGIN
+    timing_options = toc(timing_options_clock);
+% TIMING-END
     lens = numel(sol);
     out_infos = cell(lens, 1);
     out_lambdas = cell(lens, 1);
+    timing_raw_spectra = cell(lens, 1);
+    timing_zero_info = cell(lens, 1);
     % out_conds = nan(lens, 1);
     condstr = cell(lens, 1);
-    % Semantic method labels for the CSV row names and the figure legend.
-    % Order = sol{1..5}.
+    % Semantic method labels for the CSV row names and the figure legend, matching
+    % the published artefacts (SET-08: the shipped script had regressed these to
+    % 'method 1..5'; the committed CSVs and PDFs use these names). Order = sol{1..5}.
     method_labels = {'St', 'PC-bal', 'PC-opt', 'PM-Lag', 'PM-LR'};
     assert(numel(method_labels) == lens, 'method_labels count must equal lens');
+% TIMING-BEGIN
+    timing_shared = [0, timing_rootC + timing_inverse_rootC, timing_rootC, timing_eigC, timing_eigC];
+    timing_preprocessing = timing_initial + timing_shared + timing_setup(1:lens) + timing_options;
+    design_diagnostics = native_design_diagnostics(design_state);
+    fprintf('DESIGN %s LP %.17g QP %.17g slack %.17g attempts %d primal %.3g\n', ...
+        filename, design.lp_value, design.qp_value, design.slack, ...
+        design.stage2_attempts, design_diagnostics.qp_primal_violation);
+
+    timing_breakdown = zeros(lens, 10);
+    timing_points = cell(lens, 1);
+    timing_histories = cell(lens, 1);
+    timing_rng_states = cell(lens, 1);
+    timing_shifted_histories = cell(lens, 1);
+    timing_resolved_options = cell(lens, 1);
+    timing_stopping = cell(lens, 1);
+    timing_design_bases = struct('UQ', UQ, 'UP', UP);
+    timing_initial_mappings = struct('PC_bal_Q',tildeQ,'PC_bal_P',tildeP,'PC_opt_Q',breveQ,'PC_opt_P',breveP);
+    timing_initial_points = cellfun(@(s) s.Y0, sol, 'UniformOutput', false);
+% TIMING-END
     T_vals = cell(lens, 1);
     for is = 1:lens
         solver = sol{is};
         % [x, cost, info, ~] = trustregions(solver, solver.Y0, opt);
-        [x, cost, info, ~] = conjugategradient(solver, solver.Y0, opt);
-        [cond, lambda, zinfo] = getcond(solver, x);
+% TIMING-BEGIN
+        timing_rng_states{is} = rng;
+        timing_solver_clock = tic;
+% TIMING-END
+        [x, cost, info, solver_options] = conjugategradient(solver, solver.Y0, opt);
+% TIMING-BEGIN
+        timing_solver_wall = toc(timing_solver_clock);
+        timing_solver_info = info(end).time;
+        timing_solver_overhead = timing_solver_wall - timing_solver_info;
+        assert(timing_solver_overhead >= -1e-8, 'Outer solver clock shorter than reported clock');
+        timing_total = timing_preprocessing(is) + timing_solver_wall;
+        timing_points{is} = x;
+        timing_histories{is} = info;
+        timing_shifted_histories{is} = timing_preprocessing(is) + timing_solver_overhead + [info.time];
+        assert(abs(timing_shifted_histories{is}(end) - timing_total) <= 1e-10 * max(1, timing_total));
+        timing_breakdown(is, :) = [timing_initial, timing_shared(is), timing_setup(is), timing_options, timing_preprocessing(is), timing_solver_info, timing_solver_overhead, timing_solver_wall, timing_total, timing_total / info(end).iter];
+% TIMING-END
+        timing_resolved_options{is} = solver_options;
+        timing_stopping{is} = record_solver_termination(solver, x, solver_options, info);
+        fprintf('ALGORITHM %s %s iter %d total %.9g reason %s\n', filename, ...
+            method_labels{is}, info(end).iter, timing_total, timing_stopping{is}.label);
+        [cond, lambda, zinfo, lambda_raw] = getcond(solver, x);
+        timing_raw_spectra{is} = lambda_raw;
+        timing_zero_info{is} = zinfo;
         fprintf('zero-modes %-8s tol=%.3e kept_min=%.6e rejected_max=%.3e n_rejected=%d\n', ...
             method_labels{is}, zinfo.zero_tol, zinfo.kept_min, zinfo.rejected_max, zinfo.n_rejected);
         % lambda = nan;
         % cond = nan;
         out_infos{is} = info;
         out_lambdas{is} = lambda;
-        condstr{is} = method_labels{is};
+        condstr{is} = ['\textsf{' method_labels{is} '}'];
         % condstr{is} = sprintf('method %d ($\\kappa=%.2e$)', is, cond);
         T_vals{is} = [solver.cost(x), info(end).gradnorm, ...
-            solver.feasi(x), info(end).iter, info(end).time,...
-            info(end).time/info(end).iter, cond, solver.condhat(x)];
+            solver.feasi(x), info(end).iter, timing_total,...
+            timing_total/info(end).iter, cond, solver.condhat(x)];
     end
+
+    flush_transp_guard_log(fullfile(output_dir, 'transp_guard_rejections_symm.csv'));
 
     %%
     varNames = ["fval", "gradf", "feasi", "iter", "time", "time_per_iter", "cond", "cond hat"];
@@ -324,6 +387,7 @@ for ip = 1:lenp
     %%
     close all;
     fig = figure('Color','white','Units','inches', 'Position',[0 0 FIG_WIDTH FIG_HEIGHT]);
+    light_theme(fig);
     set(fig, 'PaperUnits','inches','PaperSize',[FIG_WIDTH FIG_HEIGHT],...
         'PaperPosition',[0 0 FIG_WIDTH FIG_HEIGHT]);
     ax = gobjects(3, 1);
@@ -335,16 +399,18 @@ for ip = 1:lenp
         out_info = out_infos{is};
         marker_idx = round(logspace(0, log10(length([out_info.time])), MARKER_NUM));
         % marker_idx = round(linspace(1, length([out_info.time]), MARKER_NUM));
-        semilogy([out_info.time], [out_info.cost]-fstar, 'LineStyle', line_list{is},...
+        semilogy(timing_preprocessing(is) + timing_breakdown(is, 7) + [out_info.time], [out_info.cost]-fstar, 'LineStyle', line_list{is},...
             'Color', color_list{is}, 'Marker', marker_list{is}, ...
             'LineWidth', LINE_WIDTH, 'MarkerSize', MARKER_SIZE, ...
             'MarkerIndices', marker_idx);
         % hold on; box on; grid off;
     end
     set(gca, 'XScale', 'log', 'YScale', 'log', 'FontSize',FONT_SIZE_TICK, ...
-        'FontName', FONT_NAME, 'LineWidth', AXIS_LINE_WIDTH);
-    xlabel('Time [s]', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL);
-    ylabel('Cost value gap', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL);
+        'FontName', FONT_NAME, 'LineWidth', AXIS_LINE_WIDTH, ...
+        'Color', 'w', 'XColor', AXIS_COLOR, 'YColor', AXIS_COLOR);
+    decade_ticks(gca);
+    xlabel('Total time [s]', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL, 'Color',AXIS_COLOR);
+    ylabel('Cost value gap', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL, 'Color',AXIS_COLOR);
 
     ax(2) = axes('Units','normalized','Position', [posx(2), posy, subplotW, subplotH]);
     hold on; box on; grid off;
@@ -359,9 +425,11 @@ for ip = 1:lenp
         hold on; box on; grid off;
     end
     set(gca, 'XScale', 'log', 'YScale', 'log', 'FontSize',FONT_SIZE_TICK, ...
-        'FontName', FONT_NAME, 'LineWidth', AXIS_LINE_WIDTH);
-    xlabel('Iteration #', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL);
-    ylabel('Gradient norm', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL);
+        'FontName', FONT_NAME, 'LineWidth', AXIS_LINE_WIDTH, ...
+        'Color', 'w', 'XColor', AXIS_COLOR, 'YColor', AXIS_COLOR);
+    decade_ticks(gca);
+    xlabel('Iteration #', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL, 'Color',AXIS_COLOR);
+    ylabel('Gradient norm', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL, 'Color',AXIS_COLOR);
 
     ax(3) = axes('Units','normalized','Position', [posx(3), posy, subplotW, subplotH]);
     hold on; box on; grid off;
@@ -377,42 +445,57 @@ for ip = 1:lenp
             'LineWidth', LINE_WIDTH, 'MarkerSize', MARKER_SIZE);
     end
     set(gca, 'XScale', 'log', 'YScale', 'log', 'FontSize',FONT_SIZE_TICK, ...
-        'FontName', FONT_NAME, 'LineWidth', AXIS_LINE_WIDTH);
-    xlabel('Eigenvalue number (sorted)', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL);
-    ylabel('Eigenvalues of Hessian', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL);
-
-    for iax = 1:numel(ax)
-        pos = get(ax(iax), 'Position');
-        pos(2) = pos(2) + 0.08;
-        set(ax(iax), 'Position', pos);
-    end
-
-    leg_ax = axes('Position', [0.2, 0, 0.6, 0.04], 'Visible', 'off');
-    hold on;
-    for is = 1:lens
-        plot(NaN, NaN, 'LineStyle', line_list{is},...
-            'Color', color_list{is}, 'Marker', marker_list{is}, ...
-            'LineWidth', LINE_WIDTH, 'MarkerSize', MARKER_SIZE);
-    end
-    legend(leg_ax, condstr, 'Position', [0.2, 0.02, 0.6, 0.06], ...
-        'Orientation', 'horizontal', 'Box', 'on', 'FontName', FONT_NAME, ...
-        'FontSize', FONT_SIZE_LEGEND, 'Interpreter', 'latex');
+        'FontName', FONT_NAME, 'LineWidth', AXIS_LINE_WIDTH, ...
+        'Color', 'w', 'XColor', AXIS_COLOR, 'YColor', AXIS_COLOR);
+    decade_ticks(gca);
+    xlabel('Eigenvalue number (sorted)', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL, 'Color',AXIS_COLOR);
+    ylabel('Hessian eigenvalues', 'FontName',FONT_NAME, 'FontSize',FONT_SIZE_LABEL, 'Color',AXIS_COLOR);
 
     filename_csv = fullfile(output_dir, sprintf('%s.csv', filename));
     filename_pdf = fullfile(output_dir, sprintf('%s.pdf', filename));
 
     writetable(T, filename_csv, 'WriteRowNames', true);
+% TIMING-BEGIN
+    timing_columns = {'initial_point', 'shared_spectral', 'method_setup', 'options', 'preprocessing', 'solver_info', 'solver_unlogged_overhead', 'solver_wall', 'total', 'total_per_iter'};
+    timing_table = array2table(timing_breakdown, 'VariableNames', timing_columns, 'RowNames', method_labels(:));
+    writetable(timing_table, fullfile(output_dir, [filename '_timing.csv']), 'WriteRowNames', true);
+    timing_final_rng = rng;
+    save(fullfile(output_dir, [filename '_validation.mat']), 'timing_points', 'timing_histories', 'timing_shifted_histories', 'timing_rng_states', 'timing_final_rng', 'timing_table', 'out_lambdas', 'opt', 'C', 'D', 'Y0', 'EP', 'EQ', 'x', 'y', 'slack', 'opt_lp', 'design_x', 'design_y', 'design', 'design_diagnostics', 'design_state', 'timing_resolved_options', 'timing_stopping', 'timing_design_bases', 'timing_initial_points', 'timing_initial_mappings', 'design_rng_before', 'design_rng_after', 'timing_raw_spectra', 'timing_zero_info');
+% TIMING-END
     exportgraphics(fig, filename_pdf, 'ContentType', 'vector', ...
         'BackgroundColor', 'none', 'Resolution', 300);
 end
+
+%% Shared legend strip for the four instance figures (v2_15 layout)
+fig = figure('Color','white','Units','inches', 'Position',[0 0 FIG_WIDTH 0.3]);
+light_theme(fig);
+set(fig, 'PaperUnits','inches','PaperSize',[FIG_WIDTH 0.3],...
+    'PaperPosition',[0 0 FIG_WIDTH 0.3]);
+leg_ax = axes('Position', [0 0 1 1], 'Visible', 'off');
+hold on;
+h = gobjects(lens, 1);
+for is = 1:lens
+    h(is) = plot(leg_ax, NaN, NaN, 'LineStyle', line_list{is},...
+        'Color', color_list{is}, 'Marker', marker_list{is}, ...
+        'LineWidth', LINE_WIDTH, 'MarkerSize', MARKER_SIZE);
+end
+lg = legend(leg_ax, h, condstr, 'Orientation', 'horizontal', 'Box', 'on', ...
+    'FontName', FONT_NAME, 'FontSize', FONT_SIZE_LEGEND, 'Interpreter', 'latex', ...
+    'Color', 'w', 'TextColor', [0 0 0], 'EdgeColor', AXIS_COLOR);
+lg.Units = 'normalized';
+lg.Position(1) = 0.5 - lg.Position(3)/2;
+lg.Position(2) = 0.5 - lg.Position(4)/2;
+exportgraphics(fig, fullfile(output_dir, 'legend_symm.pdf'), 'ContentType', 'vector', ...
+    'BackgroundColor', 'none');
+close(fig);
 
 
 %%
 % ======================================================================
 % Condition number of the Riemannian Hessian via Manopt's hessianspectrum.
 % ======================================================================
-function [cond, lambda, zinfo] = getcond(solver, x)
-    % Let a solver install a base-point-specific fast Hessian before the
+function [cond, lambda, zinfo, lambda_raw] = getcond(solver, x)
+    % WP10: let a solver install a base-point-specific fast Hessian before the
     % spectrum is taken. The prepared operator must be mathematically identical
     % to the original; it exists only to hoist work that does not depend on the
     % direction being applied.
@@ -420,15 +503,17 @@ function [cond, lambda, zinfo] = getcond(solver, x)
         solver = solver.prepare_hessian(solver, x);
     end
     lambda = hessianspectrum(solver, x);
-    % Scale-aware zero classification, identical to example_skew.m. A fixed
-    % absolute cutoff is scale dependent and can delete a genuine small mode.
+    lambda_raw = lambda;
+    % Scale-aware zero classification, identical to example_skew.m. The former
+    % absolute 1e-5 cutoff is scale dependent: it deleted the true 8.93e-6
+    % minimum mode in the skew tridiagonal PC-bal experiment.
     zero_tol = 1e-12 * max([1; abs(lambda(:))]);
     lambda = real(lambda);
     rejected = lambda(lambda <= zero_tol);
     lambda = lambda(lambda > zero_tol);
     lambda = sort(lambda, 'descend');
     cond = lambda(1) / lambda(end);
-    % Archive the classification boundary, so a reader can check that no
+    % RV4.2-2: archive the classification boundary, so a reader can check that no
     % genuine mode was discarded.
     zinfo = struct('zero_tol', zero_tol, 'kept_min', lambda(end), ...
                    'rejected_max', maxrej(rejected), 'n_rejected', numel(rejected));
@@ -633,7 +718,7 @@ function rhess = ehess2rhess_Lag(Y, eg, eh, Z, C, D, omega, U, lc, p)
 end
 
 % ======================================================================
-% Fixed-base-point acceleration of the Lagrangian metric.
+% WP10 fixed-base-point acceleration of the Lagrangian metric.
 %
 % egrad2rgrad_Lag spends essentially all of its time building the m-by-m
 % tangency system A (m = p(p+1)/2), whose every column costs one
@@ -646,7 +731,7 @@ end
 % applyGinv_Lag calls for each new right-hand side, the same tangent
 % safeguard. The returned operator is exact, not approximate.
 %
-% Measured at n = 100, p = 20:
+% Measured at n=100, p=20 (rv_scratch/claude_wp10_validate.m):
 %   per-application 1.714e-01 s -> 2.153e-03 s   (79.6x)
 %   full spectrum   343.0 s (est.) -> 5.76 s     (59.5x)
 %   cached vs uncached rgrad: max Frobenius difference exactly 0.
@@ -829,4 +914,33 @@ function G = invsqrtmL(L, delta, p)
     e = diag(E);
     G = V * diag(1 ./ sqrt(e.^2 + delta)) * V';
     G = symm(G);
+end
+
+
+%%
+% ======================================================================
+% Plotting helpers of the v2_15 figure layout (replot_figs.m).
+% ======================================================================
+function decade_ticks(ax)
+% Major ticks at powers of ten, at most four labelled decades per axis. An axis
+% that spans fewer than two decades keeps MATLAB's automatic ticks.
+lims = {get(ax, 'XLim'), get(ax, 'YLim')};
+props = {'XTick', 'YTick'};
+for a = 1:2
+    lim = lims{a};
+    d = ceil(log10(lim(1)) - 1e-9):floor(log10(lim(2)) + 1e-9);
+    if numel(d) < 2, continue; end
+    step = max(1, ceil(numel(d) / 4));
+    k = d(mod(d, step) == 0);
+    if numel(k) < 2, k = d(1:step:end); end
+    set(ax, props{a}, 10.^k);
+end
+end
+
+function light_theme(fig)
+% MATLAB R2025a in -batch mode may default to the dark theme.
+try
+    fig.Theme = 'light';
+catch
+end
 end

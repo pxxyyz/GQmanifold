@@ -22,7 +22,9 @@ if issymmetric(Q) && issymmetric(P)
 elseif issymmetric(Q, "skew") && issymmetric(P, "skew")
     rho = -1;
 else
-    error('error');
+    error('generalfactory:symmetry', ...
+        ['Q and P must carry the same symmetry: both symmetric or both ' ...
+         'skew-symmetric.']);
 end
 
 invQ = inv(Q);
@@ -33,6 +35,8 @@ assert(n >= p, 'The dimension n must be larger than the dimension p.');
 if ~exist('beta','var') || isempty(beta)
     beta = 1;
 end
+assert(isscalar(beta) && isreal(beta) && beta > 0, ...
+    'generalfactory:beta', 'beta must be a positive real scalar.');
 
 guard_reason.cayley_inverse = 'cayley_inverse';
 guard_reason.polar_sylvester = 'polar_sylvester';
@@ -366,11 +370,11 @@ M.transp_pol = @transp_pol;
     end
 
     function write_transp_guard_log()
-        global GQ_TRANSP_GUARD_LOG
-        if strlength(transp_guard_log_path) == 0 || isempty(GQ_TRANSP_GUARD_LOG)
-            return;
-        end
-        writetable(struct2table(GQ_TRANSP_GUARD_LOG), transp_guard_log_path);
+        % Emit the counter table only when the caller asks for it. Writing on
+        % every factory construction or rejection puts file I/O inside the
+        % solver loop; the drivers call flush_transp_guard_log after their
+        % algorithm timers stop.
+        return;
     end
 
     function log_path = resolve_transp_guard_log_path()
@@ -571,10 +575,10 @@ M.selecttransp = @selecttransp; % M.transp(x, newx, grad)
         elseif isequal(M.retr, M.retr_qgeo)
             transp = @(x1, x2, d) M.proj(x2, d);
             % transp = M.transp_qgeo;
-        elseif isequal(M.retr, M.retr_qr)
-            % transp = M.transp_qr;
         else
-            error('error');
+            error('generalfactory:selecttransp', ...
+                ['No vector transport is registered for the current ' ...
+                 'M.retr.']);
         end
     end
 
